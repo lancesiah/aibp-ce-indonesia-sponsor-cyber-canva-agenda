@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: transparent; font-family: 'Outfit', sans-serif; }
+
+  .agenda-container { background: #212b5a; border-radius: 20px; overflow: visible; box-shadow: 0 20px 50px rgba(33,43,90,0.15); color: #fff; }
+  .day-nav { display: flex; background: rgba(0,0,0,0.2); border-radius: 20px 20px 0 0; }
+  .day-btn { flex: 1; padding: 20px; border: none; background: transparent; cursor: pointer; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 14px; color: rgba(255,255,255,0.5); transition: 0.2s; }
+  .day-btn.active { color: #fff; background: rgba(255,255,255,0.05); position: relative; }
+  .day-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #b11116; }
+
+  .accordion-item { border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .accordion-header { width: 100%; padding: 18px 20px; display: grid; grid-template-columns: 75px 1fr 24px; align-items: start; cursor: pointer; background: none; border: none; text-align: left; font-family: 'Outfit', sans-serif; gap: 10px; }
+  .accordion-header.no-content { cursor: default; }
+  .acc-time { font-weight: 700; color: #ff5e62; font-size: 13px; letter-spacing: 0.5px; padding-top: 3px; }
+  .acc-header-content { display: flex; flex-direction: column; gap: 3px; }
+  .acc-eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #ff5e62; opacity: 0.8; }
+  .acc-title { font-weight: 700; color: #fff; font-size: 15px; line-height: 1.4; }
+  .acc-icon { font-size: 22px; color: rgba(255,255,255,0.4); transition: transform 0.2s ease; padding-top: 2px; }
+
+  .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; background: rgba(0,0,0,0.15); }
+  .content-inner { padding: 16px 20px 20px 105px; display: flex; flex-direction: column; gap: 10px; }
+  .accordion-item.is-open .acc-icon { transform: rotate(45deg); color: #ff5e62; }
+  .accordion-item.is-open .accordion-content { max-height: 2000px; }
+
+  .session-box { border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; transition: background 0.2s ease; }
+  .session-box:hover { background: rgba(177,17,22,0.15); }
+  .session-box-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #ff5e62; padding: 8px 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .session-box-content { font-size: 13px; color: #cbd5e1; line-height: 1.6; padding: 10px 12px; white-space: pre-line; }
+
+  .msg { padding: 40px; text-align: center; color: rgba(255,255,255,0.4); font-family: 'Outfit', sans-serif; }
+</style>
+</head>
+<body>
+<div class="agenda-container" id="agendaContainer">
+  <div class="day-nav">
+    <button class="day-btn active">27 Aug</button>
+  </div>
+  <div id="day1" class="agenda-day" style="display:block;"><div class="msg">Loading...</div></div>
+</div>
+
+<script>
+  var SHEET    = '27 August 2026';
+  var BASE_URL = 'https://sheetdb.io/api/v1/6a7bfnn01n4s5';
+
+  function sendHeight() {
+    var h = document.getElementById('agendaContainer').scrollHeight;
+    window.parent.postMessage({ iframeHeight: h }, '*');
+  }
+
+  function makeBox(label, content) {
+    if (!content || !content.trim()) return '';
+    return '<div class="session-box">'
+         + '<div class="session-box-header">' + label + '</div>'
+         + '<div class="session-box-content">' + content.replace(/\n/g, '<br>') + '</div>'
+         + '</div>';
+  }
+
+  function buildHTML(rows, keys) {
+    // keys by position: 0=Time, 1=Session, 2=Format/Title, 3=Main Conference Stage, 4=Private Workshop, 5=Networking
+    var colTime  = keys[0];
+    var colEye   = keys[1];
+    var colTitle = keys[2];
+    var colD     = keys[3];
+    var colE     = keys[4];
+    var colF     = keys[5];
+
+    var html = '';
+    rows.forEach(function(row) {
+      var time  = (row[colTime]  || '').trim();
+      var eye   = (row[colEye]   || '').trim();
+      var title = (row[colTitle] || '').trim();
+      var d     = (row[colD]     || '').trim();
+      var e     = (row[colE]     || '').trim();
+      var f     = (row[colF]     || '').trim();
+
+      if (!time && !eye && !title && !d && !e && !f) return;
+      if (time === 'Time') return;
+
+      var boxD = makeBox('Main Conference Stage', d);
+      var boxE = makeBox('Private Workshop · 20 pax, min. 90 mins', e);
+      var boxF = makeBox('Networking · 10 pax, max. 60 mins', f);
+      var bodyHtml = boxD + boxE + boxF;
+      var hasContent = bodyHtml.length > 0;
+
+      html += '<div class="accordion-item">'
+            + '<button class="accordion-header' + (hasContent ? '' : ' no-content') + '"'
+            + (hasContent ? ' onclick="toggleAcc(this)"' : '') + '>'
+            + '<span class="acc-time">' + time + '</span>'
+            + '<div class="acc-header-content">'
+            + (eye   ? '<span class="acc-eyebrow">' + eye   + '</span>' : '')
+            + (title ? '<span class="acc-title">'   + title + '</span>' : '')
+            + '</div>'
+            + '<span class="acc-icon" style="' + (!hasContent ? 'opacity:0;' : '') + '">+</span>'
+            + '</button>'
+            + '<div class="accordion-content"><div class="content-inner">' + bodyHtml + '</div></div>'
+            + '</div>';
+    });
+    return html || '<div class="msg">No sessions found.</div>';
+  }
+
+  function loadDay() {
+    var el = document.getElementById('day1');
+    fetch(BASE_URL + '?sheet=' + encodeURIComponent(SHEET))
+      .then(function(r) { return r.json(); })
+      .then(function(rows) {
+        if (!rows || rows.length === 0) {
+          el.innerHTML = '<div class="msg">No sessions found.</div>';
+          sendHeight();
+          return;
+        }
+        // Use actual key order from the first row — no hardcoding
+        var keys = Object.keys(rows[0]);
+        console.log('SheetDB keys:', keys);
+        el.innerHTML = buildHTML(rows, keys);
+        sendHeight();
+      })
+      .catch(function() {
+        el.innerHTML = '<div class="msg" style="color:#ff5e62;">Failed to load. Please refresh.</div>';
+        sendHeight();
+      });
+  }
+
+  function toggleAcc(btn) {
+    var item = btn.parentElement;
+    var isOpen = item.classList.contains('is-open');
+    document.querySelectorAll('.accordion-item').forEach(function(i) { i.classList.remove('is-open'); });
+    if (!isOpen) item.classList.add('is-open');
+    setTimeout(sendHeight, 450);
+  }
+
+  loadDay();
+</script>
+</body>
+</html>
